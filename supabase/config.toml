@@ -1,0 +1,4 @@
+project_id = "mhxllyptyylpyqdiqjic"
+
+[functions.analyze-symptoms]
+verify_jwt = false
