@@ -58,5 +58,13 @@ const App = () => (
     </TooltipProvider>
   </QueryClientProvider>
 );
+console.log("Gemini API Key loaded:", import.meta.env.VITE_GEMINI_API_KEY || "No key found");
+// ---------------------------------------------------
+
+ReactDOM.createRoot(document.getElementById("root")!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
 
 export default App;
