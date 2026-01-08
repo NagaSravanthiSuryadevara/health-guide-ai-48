@@ -3,10 +3,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Heart, LogOut, Stethoscope, MapPin, Loader2, AlertCircle, Hospital, Navigation } from 'lucide-react';
+import { Heart, LogOut, Stethoscope, MapPin, Loader2, AlertCircle, Hospital, Navigation, Mic, Upload } from 'lucide-react';
 import { analyzeSymptoms, type AnalysisResult } from '@/lib/symptomAnalyzer';
 import { findNearbyHospitals, type Hospital as HospitalType } from '@/lib/hospitalFinder';
+import { VoiceRecorder } from '@/components/VoiceRecorder';
+import { ReportUpload } from '@/components/ReportUpload';
+import { ReportAnalysisResult } from '@/components/ReportAnalysisResult';
+import { type ReportAnalysis } from '@/lib/reportAnalyzer';
 
 export default function Home() {
   const { user, signOut } = useAuth();
@@ -16,6 +21,7 @@ export default function Home() {
   const [hospitals, setHospitals] = useState<HospitalType[]>([]);
   const [isLoadingHospitals, setIsLoadingHospitals] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [reportAnalysis, setReportAnalysis] = useState<ReportAnalysis | null>(null);
 
   const handleAnalyze = async () => {
     if (!symptoms.trim()) {
@@ -65,6 +71,14 @@ export default function Home() {
     toast.success('Signed out successfully');
   };
 
+  const handleVoiceTranscription = (text: string) => {
+    setSymptoms(prev => prev ? `${prev}\n${text}` : text);
+  };
+
+  const handleReportAnalysis = (analysis: ReportAnalysis) => {
+    setReportAnalysis(analysis);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-hero">
       {/* Header */}
@@ -89,7 +103,7 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 max-w-4xl">
-        {/* Symptom Input Section */}
+        {/* Symptom Input Section with Tabs */}
         <Card className="mb-8 border-0 shadow-lg">
           <CardHeader>
             <div className="flex items-center gap-3 mb-2">
@@ -97,39 +111,109 @@ export default function Home() {
                 <Stethoscope className="h-6 w-6 text-accent-foreground" />
               </div>
               <div>
-                <CardTitle className="font-display text-2xl">Symptom Checker</CardTitle>
-                <CardDescription>Describe your symptoms for AI-powered analysis</CardDescription>
+                <CardTitle className="font-display text-2xl">Health Assistant</CardTitle>
+                <CardDescription>Describe symptoms, record voice, or upload a report</CardDescription>
               </div>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <Textarea
-              placeholder="Describe your symptoms in detail. For example: 'I have a headache, slight fever, and sore throat for the past 2 days...'"
-              value={symptoms}
-              onChange={(e) => setSymptoms(e.target.value)}
-              className="min-h-[150px] resize-none"
-            />
-            <Button 
-              onClick={handleAnalyze} 
-              disabled={isAnalyzing || !symptoms.trim()}
-              className="w-full sm:w-auto"
-            >
-              {isAnalyzing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Analyzing...
-                </>
-              ) : (
-                <>
-                  <Stethoscope className="mr-2 h-4 w-4" />
-                  Analyze Symptoms
-                </>
-              )}
-            </Button>
+          <CardContent>
+            <Tabs defaultValue="type" className="w-full">
+              <TabsList className="grid w-full grid-cols-3 mb-4">
+                <TabsTrigger value="type" className="flex items-center gap-2">
+                  <Stethoscope className="h-4 w-4" />
+                  <span className="hidden sm:inline">Type Symptoms</span>
+                  <span className="sm:hidden">Type</span>
+                </TabsTrigger>
+                <TabsTrigger value="voice" className="flex items-center gap-2">
+                  <Mic className="h-4 w-4" />
+                  <span className="hidden sm:inline">Voice Input</span>
+                  <span className="sm:hidden">Voice</span>
+                </TabsTrigger>
+                <TabsTrigger value="upload" className="flex items-center gap-2">
+                  <Upload className="h-4 w-4" />
+                  <span className="hidden sm:inline">Upload Report</span>
+                  <span className="sm:hidden">Upload</span>
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="type" className="space-y-4">
+                <Textarea
+                  placeholder="Describe your symptoms in detail. For example: 'I have a headache, slight fever, and sore throat for the past 2 days...'"
+                  value={symptoms}
+                  onChange={(e) => setSymptoms(e.target.value)}
+                  className="min-h-[150px] resize-none"
+                />
+                <Button 
+                  onClick={handleAnalyze} 
+                  disabled={isAnalyzing || !symptoms.trim()}
+                  className="w-full sm:w-auto"
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <Stethoscope className="mr-2 h-4 w-4" />
+                      Analyze Symptoms
+                    </>
+                  )}
+                </Button>
+              </TabsContent>
+
+              <TabsContent value="voice" className="space-y-4">
+                <div className="bg-secondary/50 rounded-lg p-6 text-center">
+                  <Mic className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Click the button below to record your symptoms. Speak clearly and describe how you're feeling.
+                  </p>
+                  <VoiceRecorder onTranscription={handleVoiceTranscription} disabled={isAnalyzing} />
+                </div>
+                {symptoms && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-muted-foreground">Transcribed symptoms:</p>
+                    <Textarea
+                      value={symptoms}
+                      onChange={(e) => setSymptoms(e.target.value)}
+                      className="min-h-[100px] resize-none"
+                    />
+                    <Button 
+                      onClick={handleAnalyze} 
+                      disabled={isAnalyzing || !symptoms.trim()}
+                      className="w-full sm:w-auto"
+                    >
+                      {isAnalyzing ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Analyzing...
+                        </>
+                      ) : (
+                        <>
+                          <Stethoscope className="mr-2 h-4 w-4" />
+                          Analyze Symptoms
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="upload" className="space-y-4">
+                <ReportUpload onAnalysis={handleReportAnalysis} disabled={false} />
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
 
-        {/* Analysis Result */}
+        {/* Report Analysis Result */}
+        {reportAnalysis && (
+          <div className="mb-8 animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
+            <ReportAnalysisResult analysis={reportAnalysis} />
+          </div>
+        )}
+
+        {/* Symptom Analysis Result */}
         {analysisResult && (
           <Card className="mb-8 border-0 shadow-lg animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
             <CardHeader>
