@@ -5,10 +5,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Heart, LogOut, Stethoscope, MapPin, Loader2, AlertCircle, Hospital, Navigation, Mic, Upload } from 'lucide-react';
+import { Heart, LogOut, Stethoscope, MapPin, Loader2, AlertCircle, Hospital, Navigation, Upload } from 'lucide-react';
 import { analyzeSymptoms, type AnalysisResult } from '@/lib/symptomAnalyzer';
 import { findNearbyHospitals, type Hospital as HospitalType } from '@/lib/hospitalFinder';
-import { VoiceRecorder } from '@/components/VoiceRecorder';
 import { ReportUpload } from '@/components/ReportUpload';
 import { ReportAnalysisResult } from '@/components/ReportAnalysisResult';
 import { type ReportAnalysis } from '@/lib/reportAnalyzer';
@@ -71,10 +70,6 @@ export default function Home() {
     toast.success('Signed out successfully');
   };
 
-  const handleVoiceTranscription = (text: string) => {
-    setSymptoms(prev => prev ? `${prev}\n${text}` : text);
-  };
-
   const handleReportAnalysis = (analysis: ReportAnalysis) => {
     setReportAnalysis(analysis);
   };
@@ -112,22 +107,17 @@ export default function Home() {
               </div>
               <div>
                 <CardTitle className="font-display text-2xl">Health Assistant</CardTitle>
-                <CardDescription>Describe symptoms, record voice, or upload a report</CardDescription>
+                <CardDescription>Describe symptoms or upload a report</CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="type" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 mb-4">
+              <TabsList className="grid w-full grid-cols-2 mb-4">
                 <TabsTrigger value="type" className="flex items-center gap-2">
                   <Stethoscope className="h-4 w-4" />
                   <span className="hidden sm:inline">Type Symptoms</span>
                   <span className="sm:hidden">Type</span>
-                </TabsTrigger>
-                <TabsTrigger value="voice" className="flex items-center gap-2">
-                  <Mic className="h-4 w-4" />
-                  <span className="hidden sm:inline">Voice Input</span>
-                  <span className="sm:hidden">Voice</span>
                 </TabsTrigger>
                 <TabsTrigger value="upload" className="flex items-center gap-2">
                   <Upload className="h-4 w-4" />
@@ -160,43 +150,6 @@ export default function Home() {
                     </>
                   )}
                 </Button>
-              </TabsContent>
-
-              <TabsContent value="voice" className="space-y-4">
-                <div className="bg-secondary/50 rounded-lg p-6 text-center">
-                  <Mic className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Click the button below to record your symptoms. Speak clearly and describe how you're feeling.
-                  </p>
-                  <VoiceRecorder onTranscription={handleVoiceTranscription} disabled={isAnalyzing} />
-                </div>
-                {symptoms && (
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-muted-foreground">Transcribed symptoms:</p>
-                    <Textarea
-                      value={symptoms}
-                      onChange={(e) => setSymptoms(e.target.value)}
-                      className="min-h-[100px] resize-none"
-                    />
-                    <Button 
-                      onClick={handleAnalyze} 
-                      disabled={isAnalyzing || !symptoms.trim()}
-                      className="w-full sm:w-auto"
-                    >
-                      {isAnalyzing ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Analyzing...
-                        </>
-                      ) : (
-                        <>
-                          <Stethoscope className="mr-2 h-4 w-4" />
-                          Analyze Symptoms
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                )}
               </TabsContent>
 
               <TabsContent value="upload" className="space-y-4">
