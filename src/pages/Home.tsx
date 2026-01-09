@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,6 +11,8 @@ import { findNearbyHospitals, type Hospital as HospitalType } from '@/lib/hospit
 import { ReportUpload } from '@/components/ReportUpload';
 import { ReportAnalysisResult } from '@/components/ReportAnalysisResult';
 import { type ReportAnalysis } from '@/lib/reportAnalyzer';
+import { SymptomHistory } from '@/components/SymptomHistory';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Home() {
   const { user, signOut } = useAuth();
@@ -21,6 +23,7 @@ export default function Home() {
   const [isLoadingHospitals, setIsLoadingHospitals] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [reportAnalysis, setReportAnalysis] = useState<ReportAnalysis | null>(null);
+  const historyRef = useRef<{ refresh: () => void }>(null);
 
   const handleAnalyze = async () => {
     if (!symptoms.trim()) {
@@ -35,6 +38,23 @@ export default function Home() {
     try {
       const result = await analyzeSymptoms(symptoms);
       setAnalysisResult(result);
+      
+      // Save to history
+      if (user) {
+        const { error } = await supabase.from('symptom_history').insert({
+          user_id: user.id,
+          symptoms: symptoms,
+          possible_conditions: result.possibleConditions as unknown,
+          recommendations: result.recommendations as unknown,
+          urgency_level: result.urgencyLevel,
+        } as any);
+        if (error) {
+          console.error('Failed to save to history:', error);
+        } else {
+          historyRef.current?.refresh();
+        }
+      }
+      
       toast.success('Analysis complete!');
     } catch (error) {
       console.error('Analysis error:', error);
@@ -244,6 +264,11 @@ export default function Home() {
             </CardContent>
           </Card>
         )}
+
+        {/* Symptom History */}
+        <div className="mb-8">
+          <SymptomHistory ref={historyRef} />
+        </div>
 
         {/* Find Nearby Hospitals */}
         <Card className="border-0 shadow-lg">
