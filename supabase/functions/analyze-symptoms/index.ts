@@ -11,11 +11,17 @@ serve(async (req) => {
   }
 
   try {
-    const { symptoms } = await req.json();
+    const { symptoms, conversationHistory } = await req.json();
     
-    if (!symptoms || typeof symptoms !== 'string') {
+    // Support both direct symptoms string and conversation history
+    const symptomsText = symptoms || (conversationHistory ? 
+      conversationHistory.map((m: { role: string; content: string }) => 
+        `${m.role === 'user' ? 'Patient' : 'Assistant'}: ${m.content}`
+      ).join('\n') : null);
+    
+    if (!symptomsText) {
       return new Response(
-        JSON.stringify({ error: 'Symptoms are required' }),
+        JSON.stringify({ error: 'Symptoms or conversation history are required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -64,7 +70,7 @@ Guidelines for urgency:
         model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Please analyze these symptoms and provide your assessment: ${symptoms}` }
+          { role: 'user', content: `Please analyze this patient consultation and provide your assessment:\n\n${symptomsText}` }
         ],
         tools: [
           {
