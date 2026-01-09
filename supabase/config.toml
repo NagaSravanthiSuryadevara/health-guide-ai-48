@@ -3,8 +3,5 @@ project_id = "mhxllyptyylpyqdiqjic"
 [functions.analyze-symptoms]
 verify_jwt = false
 
-[functions.transcribe-voice]
-verify_jwt = false
-
 [functions.analyze-report]
 verify_jwt = false
