@@ -1,49 +1,51 @@
 import { useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Heart, LogOut, Stethoscope, MapPin, Loader2, AlertCircle, Hospital, Navigation, Upload } from 'lucide-react';
-import { analyzeSymptoms, type AnalysisResult } from '@/lib/symptomAnalyzer';
+import { analyzeSymptomsFromConversation, type AnalysisResult, type ConversationMessage } from '@/lib/symptomAnalyzer';
 import { findNearbyHospitals, type Hospital as HospitalType } from '@/lib/hospitalFinder';
 import { ReportUpload } from '@/components/ReportUpload';
 import { ReportAnalysisResult } from '@/components/ReportAnalysisResult';
 import { type ReportAnalysis } from '@/lib/reportAnalyzer';
 import { SymptomHistory } from '@/components/SymptomHistory';
+import { SymptomChat } from '@/components/SymptomChat';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function Home() {
   const { user, signOut } = useAuth();
-  const [symptoms, setSymptoms] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [hospitals, setHospitals] = useState<HospitalType[]>([]);
   const [isLoadingHospitals, setIsLoadingHospitals] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [reportAnalysis, setReportAnalysis] = useState<ReportAnalysis | null>(null);
+  const [conversationHistory, setConversationHistory] = useState<ConversationMessage[]>([]);
   const historyRef = useRef<{ refresh: () => void }>(null);
 
-  const handleAnalyze = async () => {
-    if (!symptoms.trim()) {
-      toast.error('Please enter your symptoms');
-      return;
-    }
-
+  const handleConversationComplete = async (messages: ConversationMessage[]) => {
+    setConversationHistory(messages);
     setIsAnalyzing(true);
     setAnalysisResult(null);
     setHospitals([]);
 
     try {
-      const result = await analyzeSymptoms(symptoms);
+      const result = await analyzeSymptomsFromConversation(messages);
       setAnalysisResult(result);
+      
+      // Extract initial symptoms from conversation for history
+      const symptomsText = messages
+        .filter(m => m.role === 'user')
+        .map(m => m.content)
+        .join(' | ');
       
       // Save to history
       if (user) {
         const { error } = await supabase.from('symptom_history').insert({
           user_id: user.id,
-          symptoms: symptoms,
+          symptoms: symptomsText,
           possible_conditions: result.possibleConditions as unknown,
           recommendations: result.recommendations as unknown,
           urgency_level: result.urgencyLevel,
@@ -147,29 +149,10 @@ export default function Home() {
               </TabsList>
 
               <TabsContent value="type" className="space-y-4">
-                <Textarea
-                  placeholder="Describe your symptoms in detail. For example: 'I have a headache, slight fever, and sore throat for the past 2 days...'"
-                  value={symptoms}
-                  onChange={(e) => setSymptoms(e.target.value)}
-                  className="min-h-[150px] resize-none"
+                <SymptomChat 
+                  onComplete={handleConversationComplete} 
+                  isAnalyzing={isAnalyzing} 
                 />
-                <Button 
-                  onClick={handleAnalyze} 
-                  disabled={isAnalyzing || !symptoms.trim()}
-                  className="w-full sm:w-auto"
-                >
-                  {isAnalyzing ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Analyzing...
-                    </>
-                  ) : (
-                    <>
-                      <Stethoscope className="mr-2 h-4 w-4" />
-                      Analyze Symptoms
-                    </>
-                  )}
-                </Button>
               </TabsContent>
 
               <TabsContent value="upload" className="space-y-4">
