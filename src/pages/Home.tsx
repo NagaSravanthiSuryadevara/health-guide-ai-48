@@ -317,40 +317,42 @@ export default function Home() {
             {hospitals.length > 0 && (
               <div className="space-y-3 mt-4">
                 {hospitals.map((hospital, index) => (
-                  <div 
-                    key={index} 
-                    className="p-4 rounded-lg bg-secondary/50 border border-border flex items-start gap-4 animate-in fade-in-0 slide-in-from-left-4"
+                  <a
+                    key={index}
+                    href={`https://www.google.com/maps/search/?api=1&query=${hospital.lat},${hospital.lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block p-4 rounded-lg bg-secondary/50 border border-border hover:bg-secondary/80 hover:border-primary/30 transition-all cursor-pointer animate-in fade-in-0 slide-in-from-left-4"
                     style={{ animationDelay: `${index * 100}ms` }}
                   >
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <Hospital className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-foreground">{hospital.name}</h4>
-                      <p className="text-sm text-muted-foreground">{hospital.address}</p>
-                      <div className="flex items-center gap-4 mt-2">
-                        <span className="text-sm text-primary font-medium">{hospital.distance}</span>
-                        {hospital.phone && (
-                          <a 
-                            href={`tel:${hospital.phone}`} 
-                            className="text-sm text-health-blue hover:underline"
-                          >
-                            {hospital.phone}
-                          </a>
-                        )}
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <Hospital className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-foreground">{hospital.name}</h4>
+                        <p className="text-sm text-muted-foreground">{hospital.address}</p>
+                        <div className="flex items-center gap-4 mt-2">
+                          <span className="text-sm text-primary font-medium">{hospital.distance}</span>
+                          {hospital.phone && (
+                            <span 
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                window.location.href = `tel:${hospital.phone}`;
+                              }}
+                              className="text-sm text-health-blue hover:underline"
+                            >
+                              {hospital.phone}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0 text-muted-foreground">
+                        <Navigation className="h-5 w-5" />
                       </div>
                     </div>
-                    <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(hospital.name + ' ' + hospital.address)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-shrink-0"
-                    >
-                      <Button variant="ghost" size="icon">
-                        <Navigation className="h-4 w-4" />
-                      </Button>
-                    </a>
-                  </div>
+                  </a>
                 ))}
               </div>
             )}
