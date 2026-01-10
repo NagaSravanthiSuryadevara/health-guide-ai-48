@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Heart, LogOut, Stethoscope, MapPin, Loader2, AlertCircle, Hospital, Navigation, Upload } from 'lucide-react';
-import { analyzeSymptomsFromConversation, type AnalysisResult, type ConversationMessage } from '@/lib/symptomAnalyzer';
+import { analyzeSymptomsFromConversation, type AnalysisResult, type ConversationMessage, type Medication } from '@/lib/symptomAnalyzer';
 import { findNearbyHospitals, type Hospital as HospitalType } from '@/lib/hospitalFinder';
 import { ReportUpload } from '@/components/ReportUpload';
 import { ReportAnalysisResult } from '@/components/ReportAnalysisResult';
@@ -32,7 +32,7 @@ export default function Home() {
     setHospitals([]);
 
     try {
-      const result = await analyzeSymptomsFromConversation(messages);
+      const result = await analyzeSymptomsFromConversation(messages, user?.id);
       setAnalysisResult(result);
       
       // Extract initial symptoms from conversation for history
@@ -207,6 +207,30 @@ export default function Home() {
                   ))}
                 </div>
               </div>
+
+              {/* Medications */}
+              {analysisResult.medications && analysisResult.medications.length > 0 && (
+                <div>
+                  <h3 className="font-display font-semibold text-lg mb-3 text-foreground">Suggested Medications</h3>
+                  <div className="space-y-3">
+                    {analysisResult.medications.map((med, index) => (
+                      <div key={index} className="p-4 rounded-lg bg-health-blue/10 border border-health-blue/30">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-semibold text-foreground">{med.name}</h4>
+                          <span className="text-sm font-medium px-2 py-1 rounded-full bg-health-blue/20 text-health-blue">
+                            {med.dosage}
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-2">{med.purpose}</p>
+                        <p className="text-xs text-health-orange flex items-start gap-1">
+                          <AlertCircle className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                          {med.warnings}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Recommendations */}
               <div>
