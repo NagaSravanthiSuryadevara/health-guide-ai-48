@@ -4,9 +4,17 @@ export interface Condition {
   likelihood: 'High' | 'Medium' | 'Low';
 }
 
+export interface Medication {
+  name: string;
+  dosage: string;
+  purpose: string;
+  warnings: string;
+}
+
 export interface AnalysisResult {
   possibleConditions: Condition[];
   recommendations: string[];
+  medications: Medication[];
   urgencyLevel: 'Emergency' | 'Urgent' | 'Non-urgent';
 }
 
@@ -17,14 +25,14 @@ export interface ConversationMessage {
   content: string;
 }
 
-export async function analyzeSymptoms(symptoms: string): Promise<AnalysisResult> {
+export async function analyzeSymptoms(symptoms: string, userId?: string): Promise<AnalysisResult> {
   const response = await fetch(CHAT_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
     },
-    body: JSON.stringify({ symptoms }),
+    body: JSON.stringify({ symptoms, userId }),
   });
 
   if (!response.ok) {
@@ -36,14 +44,17 @@ export async function analyzeSymptoms(symptoms: string): Promise<AnalysisResult>
   return data;
 }
 
-export async function analyzeSymptomsFromConversation(conversationHistory: ConversationMessage[]): Promise<AnalysisResult> {
+export async function analyzeSymptomsFromConversation(
+  conversationHistory: ConversationMessage[],
+  userId?: string
+): Promise<AnalysisResult> {
   const response = await fetch(CHAT_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
     },
-    body: JSON.stringify({ conversationHistory }),
+    body: JSON.stringify({ conversationHistory, userId }),
   });
 
   if (!response.ok) {

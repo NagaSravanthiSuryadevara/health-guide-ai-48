@@ -6,14 +6,21 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Heart, Shield, Activity } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Auth() {
   const { user, loading, signIn, signUp } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Signup additional fields
+  const [fullName, setFullName] = useState('');
+  const [age, setAge] = useState('');
+  const [healthIssues, setHealthIssues] = useState('');
 
   if (loading) {
     return (
@@ -43,13 +50,48 @@ export default function Auth() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!fullName.trim()) {
+      toast.error('Please enter your full name');
+      return;
+    }
+    
+    const ageNum = parseInt(age);
+    if (isNaN(ageNum) || ageNum < 1 || ageNum > 150) {
+      toast.error('Please enter a valid age');
+      return;
+    }
+    
     setIsSubmitting(true);
     const { error } = await signUp(email, password);
+    
     if (error) {
       toast.error(error.message);
+      setIsSubmitting(false);
+      return;
+    }
+    
+    // Get the newly created user to create profile
+    const { data: { user: newUser } } = await supabase.auth.getUser();
+    
+    if (newUser) {
+      const { error: profileError } = await supabase.from('profiles').insert({
+        user_id: newUser.id,
+        full_name: fullName.trim(),
+        age: ageNum,
+        health_issues: healthIssues.trim() || null,
+      } as any);
+      
+      if (profileError) {
+        console.error('Failed to create profile:', profileError);
+        toast.error('Account created but failed to save profile. Please update your profile later.');
+      } else {
+        toast.success('Account created successfully!');
+      }
     } else {
       toast.success('Account created successfully!');
     }
+    
     setIsSubmitting(false);
   };
 
@@ -74,8 +116,8 @@ export default function Auth() {
                 <Activity className="h-5 w-5 text-accent-foreground" />
               </div>
               <div>
-                <h3 className="font-display font-semibold text-foreground">AI-Powered Analysis</h3>
-                <p className="text-sm text-muted-foreground">Get intelligent health insights</p>
+                <h3 className="font-display font-semibold text-foreground">Personalized Analysis</h3>
+                <p className="text-sm text-muted-foreground">AI considers your health profile</p>
               </div>
             </div>
             <div className="flex items-center gap-4 text-left p-4 rounded-lg bg-card/60 backdrop-blur-sm">
@@ -162,6 +204,43 @@ export default function Auth() {
                       required
                       minLength={6}
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-name">Full Name *</Label>
+                    <Input
+                      id="signup-name"
+                      type="text"
+                      placeholder="John Doe"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-age">Age *</Label>
+                    <Input
+                      id="signup-age"
+                      type="number"
+                      placeholder="25"
+                      min={1}
+                      max={150}
+                      value={age}
+                      onChange={(e) => setAge(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-health">Existing Health Issues (optional)</Label>
+                    <Textarea
+                      id="signup-health"
+                      placeholder="e.g., Diabetes, Hypertension, Asthma, Allergies..."
+                      value={healthIssues}
+                      onChange={(e) => setHealthIssues(e.target.value)}
+                      rows={3}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      This helps us provide more accurate health recommendations
+                    </p>
                   </div>
                   <Button type="submit" className="w-full" disabled={isSubmitting}>
                     {isSubmitting ? 'Creating account...' : 'Create Account'}

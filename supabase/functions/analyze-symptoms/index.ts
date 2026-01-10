@@ -1,9 +1,23 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+interface UserProfile {
+  full_name: string;
+  age: number;
+  health_issues: string | null;
+}
+
+interface SymptomHistoryEntry {
+  symptoms: string;
+  possible_conditions: any[];
+  urgency_level: string;
+  created_at: string;
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -11,7 +25,7 @@ serve(async (req) => {
   }
 
   try {
-    const { symptoms, conversationHistory } = await req.json();
+    const { symptoms, conversationHistory, userId } = await req.json();
     
     // Support both direct symptoms string and conversation history
     const symptomsText = symptoms || (conversationHistory ? 
@@ -31,13 +45,70 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
+    // Fetch user profile and symptom history if userId provided
+    let userProfile: UserProfile | null = null;
+    let symptomHistory: SymptomHistoryEntry[] = [];
+    
+    if (userId) {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      
+      // Fetch user profile
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('full_name, age, health_issues')
+        .eq('user_id', userId)
+        .single();
+      
+      if (profileData) {
+        userProfile = profileData as UserProfile;
+      }
+      
+      // Fetch recent symptom history (last 10 entries)
+      const { data: historyData } = await supabase
+        .from('symptom_history')
+        .select('symptoms, possible_conditions, urgency_level, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      
+      if (historyData) {
+        symptomHistory = historyData as SymptomHistoryEntry[];
+      }
+    }
+
+    // Build context from user profile and history
+    let userContext = '';
+    
+    if (userProfile) {
+      userContext += `\n\nPATIENT PROFILE:
+- Name: ${userProfile.full_name}
+- Age: ${userProfile.age} years old
+- Known Health Issues: ${userProfile.health_issues || 'None reported'}`;
+    }
+    
+    if (symptomHistory.length > 0) {
+      userContext += `\n\nPREVIOUS SYMPTOM HISTORY (most recent first):`;
+      symptomHistory.forEach((entry, index) => {
+        const date = new Date(entry.created_at).toLocaleDateString();
+        userContext += `\n${index + 1}. [${date}] Symptoms: ${entry.symptoms} | Urgency: ${entry.urgency_level}`;
+      });
+    }
+
     const systemPrompt = `You are a medical AI assistant that helps analyze symptoms. You should:
 1. Analyze the described symptoms carefully
-2. Suggest possible conditions (not diagnoses) based on the symptoms
-3. Provide helpful recommendations
-4. Assess the urgency level
+2. Consider the patient's age, known health issues, and symptom history when available
+3. Suggest possible conditions (not diagnoses) based on all available information
+4. Provide helpful recommendations including over-the-counter medications when appropriate
+5. Assess the urgency level
 
-IMPORTANT: Always remind users that this is not a medical diagnosis and they should consult a healthcare professional.
+IMPORTANT GUIDELINES:
+- Always remind users that this is not a medical diagnosis and they should consult a healthcare professional
+- Consider drug interactions with known health conditions
+- If the patient has a history of similar symptoms, note any patterns
+- For medication suggestions, include dosage guidelines and warnings
+- Be extra cautious with elderly patients (age > 65) or very young patients (age < 12)
 
 You must respond with a valid JSON object in this exact format:
 {
@@ -52,6 +123,14 @@ You must respond with a valid JSON object in this exact format:
     "Recommendation 1",
     "Recommendation 2"
   ],
+  "medications": [
+    {
+      "name": "Medication Name",
+      "dosage": "Recommended dosage",
+      "purpose": "What it helps with",
+      "warnings": "Important warnings or contraindications"
+    }
+  ],
   "urgencyLevel": "Emergency" | "Urgent" | "Non-urgent"
 }
 
@@ -59,6 +138,15 @@ Guidelines for urgency:
 - Emergency: Chest pain, difficulty breathing, severe bleeding, signs of stroke, severe allergic reactions
 - Urgent: High fever, persistent vomiting, severe pain, symptoms worsening rapidly
 - Non-urgent: Mild symptoms, common cold symptoms, minor aches`;
+
+    const userMessage = `Please analyze this patient consultation and provide your assessment:
+
+${userContext}
+
+CURRENT SYMPTOMS:
+${symptomsText}`;
+
+    console.log('Sending to AI with user context:', userContext ? 'Yes' : 'No');
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -70,14 +158,14 @@ Guidelines for urgency:
         model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Please analyze this patient consultation and provide your assessment:\n\n${symptomsText}` }
+          { role: 'user', content: userMessage }
         ],
         tools: [
           {
             type: 'function',
             function: {
               name: 'analyze_symptoms',
-              description: 'Analyze symptoms and return structured health assessment',
+              description: 'Analyze symptoms and return structured health assessment with medication recommendations',
               parameters: {
                 type: 'object',
                 properties: {
@@ -97,12 +185,25 @@ Guidelines for urgency:
                     type: 'array',
                     items: { type: 'string' }
                   },
+                  medications: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        name: { type: 'string' },
+                        dosage: { type: 'string' },
+                        purpose: { type: 'string' },
+                        warnings: { type: 'string' }
+                      },
+                      required: ['name', 'dosage', 'purpose', 'warnings']
+                    }
+                  },
                   urgencyLevel: {
                     type: 'string',
                     enum: ['Emergency', 'Urgent', 'Non-urgent']
                   }
                 },
-                required: ['possibleConditions', 'recommendations', 'urgencyLevel']
+                required: ['possibleConditions', 'recommendations', 'medications', 'urgencyLevel']
               }
             }
           }
