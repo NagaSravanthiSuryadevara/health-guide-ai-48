@@ -47,7 +47,9 @@ export type Database = {
       symptom_history: {
         Row: {
           created_at: string
+          cured_at: string | null
           id: string
+          is_cured: boolean | null
           possible_conditions: Json
           recommendations: Json
           symptoms: string
@@ -56,7 +58,9 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          cured_at?: string | null
           id?: string
+          is_cured?: boolean | null
           possible_conditions: Json
           recommendations: Json
           symptoms: string
@@ -65,7 +69,9 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          cured_at?: string | null
           id?: string
+          is_cured?: boolean | null
           possible_conditions?: Json
           recommendations?: Json
           symptoms?: string
