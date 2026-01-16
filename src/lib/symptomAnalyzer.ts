@@ -4,17 +4,9 @@ export interface Condition {
   likelihood: 'High' | 'Medium' | 'Low';
 }
 
-export interface Medication {
-  name: string;
-  dosage: string;
-  purpose: string;
-  warnings: string;
-}
-
 export interface AnalysisResult {
   possibleConditions: Condition[];
   recommendations: string[];
-  medications: Medication[];
   urgencyLevel: 'Emergency' | 'Urgent' | 'Non-urgent';
 }
 
