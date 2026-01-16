@@ -96,19 +96,18 @@ serve(async (req) => {
       });
     }
 
-    const systemPrompt = `You are a medical AI assistant that helps analyze symptoms. You should:
+const systemPrompt = `You are a medical AI assistant that helps analyze symptoms. You should:
 1. Analyze the described symptoms carefully
 2. Consider the patient's age, known health issues, and symptom history when available
 3. Suggest possible conditions (not diagnoses) based on all available information
-4. Provide helpful recommendations including over-the-counter medications when appropriate
+4. Provide helpful lifestyle and care recommendations
 5. Assess the urgency level
 
 IMPORTANT GUIDELINES:
 - Always remind users that this is not a medical diagnosis and they should consult a healthcare professional
-- Consider drug interactions with known health conditions
 - If the patient has a history of similar symptoms, note any patterns
-- For medication suggestions, include dosage guidelines and warnings
 - Be extra cautious with elderly patients (age > 65) or very young patients (age < 12)
+- DO NOT suggest specific medications - only provide general care recommendations
 
 You must respond with a valid JSON object in this exact format:
 {
@@ -122,14 +121,6 @@ You must respond with a valid JSON object in this exact format:
   "recommendations": [
     "Recommendation 1",
     "Recommendation 2"
-  ],
-  "medications": [
-    {
-      "name": "Medication Name",
-      "dosage": "Recommended dosage",
-      "purpose": "What it helps with",
-      "warnings": "Important warnings or contraindications"
-    }
   ],
   "urgencyLevel": "Emergency" | "Urgent" | "Non-urgent"
 }
@@ -165,7 +156,7 @@ ${symptomsText}`;
             type: 'function',
             function: {
               name: 'analyze_symptoms',
-              description: 'Analyze symptoms and return structured health assessment with medication recommendations',
+              description: 'Analyze symptoms and return structured health assessment',
               parameters: {
                 type: 'object',
                 properties: {
@@ -185,25 +176,12 @@ ${symptomsText}`;
                     type: 'array',
                     items: { type: 'string' }
                   },
-                  medications: {
-                    type: 'array',
-                    items: {
-                      type: 'object',
-                      properties: {
-                        name: { type: 'string' },
-                        dosage: { type: 'string' },
-                        purpose: { type: 'string' },
-                        warnings: { type: 'string' }
-                      },
-                      required: ['name', 'dosage', 'purpose', 'warnings']
-                    }
-                  },
                   urgencyLevel: {
                     type: 'string',
                     enum: ['Emergency', 'Urgent', 'Non-urgent']
                   }
                 },
-                required: ['possibleConditions', 'recommendations', 'medications', 'urgencyLevel']
+                required: ['possibleConditions', 'recommendations', 'urgencyLevel']
               }
             }
           }
